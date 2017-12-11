@@ -39,9 +39,15 @@ app.post('/webhook', (req, res) => {
       let webhook_event = entry.messaging[0];
       console.log(webhook_event);
       
+      // Print the NLP entities of the text message
+      if (webhook_event.message) {
+        console.log(webhook_event.message.nlp.entities);
+      }
+      
+      
       // Get the sender PSID
       let sender_psid = webhook_event.sender.id;
-      console.log('Sender PSID: ' + sender_psid);
+      //console.log('Sender PSID: ' + sender_psid);
       
      // Check if the event is a message or postback and
      // pass the event to the appropriate handler function
@@ -98,11 +104,35 @@ function handleMessage(sender_psid, received_message) {
 
   // Check if the message contains text
   if (received_message.text) {    
-
-    // Create the payload for a basic text message
-    response = {
-      "text": `You sent the message: "${received_message.text}". Now send me an image!`
-    }
+    
+    // check greeting is here and is confident
+    const greeting = firstEntity(received_message.nlp, 'greetings');
+    //console.log(greeting);
+    if (greeting && greeting.confidence > 0.8) {
+      response = { 
+        "text": 'Hi there!'
+      } 
+    
+    } else {  
+      
+      // Show entities of the message
+      let entities = '';      
+      let entities_keys = Object.keys(received_message.nlp.entities);     
+      
+      for (var i = 0; i < entities_keys.length; i++) {
+        if (entities_keys[i] === "intent") {          
+          entities += " " + received_message.nlp.entities.intent[0].value + " ";
+        } else {
+          entities += " " + entities_keys[i] + " ";
+        }
+        
+      }
+      
+      // Create the payload for a basic text message
+      response = {
+        "text": `You sent the message: "${received_message.text}. The entities are:`+ entities
+      }
+    }    
   } 
   else if (received_message.attachments) {
   
@@ -185,4 +215,9 @@ function callSendAPI(sender_psid, response) {
     }
   }); 
   
+}
+
+// evaluate a greeting using NLP
+function firstEntity(nlp, name) {  
+  return nlp && nlp.entities && nlp.entities[name] && nlp.entities[name][0];
 }
